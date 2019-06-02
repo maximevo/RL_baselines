@@ -189,6 +189,8 @@ def learn(env,
 
     sess = get_session()
     set_global_seeds(seed)
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
 
     q_func = build_q_func(network, **network_kwargs)
 
@@ -287,6 +289,7 @@ def learn(env,
             episode_rewards[-1] += rew
             if done:
                 obs = env.reset()
+                episode_reward_to_save = episode_rewards[-1]
                 episode_rewards.append(0.0)
                 reset = True
 
@@ -308,12 +311,14 @@ def learn(env,
                 update_target()
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+                        
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
-                logger.record_tabular("steps", t)
-                logger.record_tabular("episodes", num_episodes)
-                logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
-                logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+                logger.record_tabular("steps", t,custom_path=checkpoint_path)
+                logger.record_tabular("episodes", num_episodes,custom_path=checkpoint_path)
+                logger.record_tabular("mean 100 episode reward", mean_100ep_reward,custom_path=checkpoint_path)
+                logger.record_tabular("episode_reward", episode_reward_to_save,custom_path=checkpoint_path)
+                logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)),custom_path=checkpoint_path)
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and t > learning_starts and
@@ -322,6 +327,9 @@ def learn(env,
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_100ep_reward))
+                        
+
+                        print('model_file: ',os.path.dirname(model_file))
                     save_variables(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
